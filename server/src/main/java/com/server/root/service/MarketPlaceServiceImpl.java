@@ -54,8 +54,8 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
 
         // 3. Handle image upload if provided
         if (image != null && !image.isEmpty()) {
-            String fileName = uploadImage(image);
-            request.setImageUrl(fileName);
+            String imageUrl = uploadImage(image);
+            request.setImageUrl(imageUrl);
         }
 
         MarketPlaceEntity entity = MarketPlaceDTOEntityMapper.toEntity(request);
@@ -98,7 +98,8 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             log.info("Image uploaded successfully: {}", newFileName);
-            return newFileName;
+            // Return the full URL path for accessing the image
+            return "/api/v1/uploads/" + newFileName;
 
         } catch (IOException e) {
             log.error("Could not store file", e);
@@ -146,7 +147,6 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
         entity.setTitle(request.getTitle());
         entity.setDescription(request.getDescription());
         entity.setPrice(request.getPrice());
-        entity.setImageUrl(request.getImageUrl());
         entity.setItemCategory(request.getItemCategory());
 
         MarketPlaceEntity updatedEntity = repository.save(entity);
