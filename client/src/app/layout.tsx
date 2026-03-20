@@ -35,7 +35,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <footer className="bg-gray-900 text-gray-300 py-8 mt-12">
           <div className="max-w-6xl mx-auto px-4 text-center">
-            <p>&copy; 2026 Online Marketplace. All rights reserved.</p>
+            <p>&copy; Student Online Marketplace. All rights reserved.</p>
           </div>
         </footer>
       </body>
