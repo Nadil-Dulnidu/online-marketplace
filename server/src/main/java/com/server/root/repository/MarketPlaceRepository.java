@@ -13,6 +13,8 @@ import java.util.UUID;
 public interface MarketPlaceRepository extends JpaRepository<MarketPlaceEntity, UUID> {
     
     boolean existsByTitleAndSellerId(String title, UUID sellerId);
+    
+    List<MarketPlaceEntity> findBySellerId(UUID sellerId);
 
     @Query("SELECT m FROM MarketPlaceEntity m WHERE " +
            "(:status IS NULL OR m.status = :status) AND " +

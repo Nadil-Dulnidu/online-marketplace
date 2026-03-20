@@ -30,7 +30,6 @@ public class ItemRequestDto {
     @NotNull(message = "Price is required")
     private Double price;
 
-    @NotBlank(message = "Image URL is required")
     private String imageUrl;
 
     @NotNull(message = "Seller ID is required")

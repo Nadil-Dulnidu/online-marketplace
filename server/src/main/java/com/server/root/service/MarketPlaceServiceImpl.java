@@ -4,6 +4,7 @@ import com.server.root.common.Constants;
 import com.server.root.dto.ItemRequestDto;
 import com.server.root.dto.ItemResponseDto;
 import com.server.root.entity.MarketPlaceEntity;
+import com.server.root.exception.FileStorageException;
 import com.server.root.exception.InvalidItemStateException;
 import com.server.root.exception.ItemNotFoundException;
 import com.server.root.exception.UnauthorizedActionException;
@@ -11,10 +12,19 @@ import com.server.root.mapper.MarketPlaceDTOEntityMapper;
 import com.server.root.repository.MarketPlaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,9 +35,12 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
 
     private final MarketPlaceRepository repository;
 
+    @Value("${file.upload-dir}")
+    private String uploadDir;
+
     @Override
     @Transactional
-    public ItemResponseDto createItem(ItemRequestDto request) {
+    public ItemResponseDto createItem(ItemRequestDto request, MultipartFile image) {
         log.info("Creating new item: {} for seller: {}", request.getTitle(), request.getSellerId());
 
         // 1. Verify user (Assume validation via User Service API is handled elsewhere or via interceptor)
@@ -39,6 +52,12 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
             throw new InvalidItemStateException("You already have an item with this title.");
         }
 
+        // 3. Handle image upload if provided
+        if (image != null && !image.isEmpty()) {
+            String fileName = uploadImage(image);
+            request.setImageUrl(fileName);
+        }
+
         MarketPlaceEntity entity = MarketPlaceDTOEntityMapper.toEntity(request);
         entity.setStatus(Constants.ItemStatus.AVAILABLE); // Default status
 
@@ -48,9 +67,57 @@ public class MarketPlaceServiceImpl implements MarketPlaceService {
     }
 
     @Override
+    public String uploadImage(MultipartFile file) {
+        log.info("Uploading image: {}", file.getOriginalFilename());
+
+        if (file.isEmpty()) {
+            throw new FileStorageException("Failed to store empty file.");
+        }
+
+        try {
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+            // Check if file name contains invalid characters
+            if (fileName.contains("..")) {
+                throw new FileStorageException("Filename contains invalid path sequence " + fileName);
+            }
+
+            // Create unique filename to prevent overwriting
+            String extension = "";
+            int i = fileName.lastIndexOf('.');
+            if (i > 0) {
+                extension = fileName.substring(i);
+            }
+            String newFileName = UUID.randomUUID().toString() + extension;
+
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            Path filePath = uploadPath.resolve(newFileName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            log.info("Image uploaded successfully: {}", newFileName);
+            return newFileName;
+
+        } catch (IOException e) {
+            log.error("Could not store file", e);
+            throw new FileStorageException("Could not store file. Please try again!", e);
+        }
+    }
+
+    @Override
     public List<ItemResponseDto> getAllItems() {
         log.info("Fetching all items");
         return repository.findAll().stream()
+                .map(MarketPlaceDTOEntityMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ItemResponseDto> getItemsBySellerId(UUID sellerId) {
+        log.info("Fetching items for seller ID: {}", sellerId);
+        return repository.findBySellerId(sellerId).stream()
                 .map(MarketPlaceDTOEntityMapper::toResponseDto)
                 .collect(Collectors.toList());
     }

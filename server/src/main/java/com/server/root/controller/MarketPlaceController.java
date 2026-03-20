@@ -8,8 +8,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,10 +24,14 @@ public class MarketPlaceController {
 
     private final MarketPlaceService marketPlaceService;
 
-    @PostMapping
-    public ResponseEntity<ItemResponseDto> createItem(@Valid @RequestBody ItemRequestDto requestDto) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "application/json")
+    public ResponseEntity<ItemResponseDto> createItem(
+            @RequestPart("items") @Valid ItemRequestDto requestDto,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        log.info("DTO: {}", requestDto);
+        log.info("Image: {}", image.getOriginalFilename());
         log.info("REST request to create item: {}", requestDto.getTitle());
-        return new ResponseEntity<>(marketPlaceService.createItem(requestDto), HttpStatus.CREATED);
+        return new ResponseEntity<>(marketPlaceService.createItem(requestDto, image), HttpStatus.CREATED);
     }
 
     @GetMapping
@@ -38,6 +44,12 @@ public class MarketPlaceController {
     public ResponseEntity<ItemResponseDto> getItemById(@PathVariable UUID id) {
         log.info("REST request to get item: {}", id);
         return ResponseEntity.ok(marketPlaceService.getItemById(id));
+    }
+
+    @GetMapping("/seller/{sellerId}")
+    public ResponseEntity<List<ItemResponseDto>> getItemsBySellerId(@PathVariable UUID sellerId) {
+        log.info("REST request to get items by seller: {}", sellerId);
+        return ResponseEntity.ok(marketPlaceService.getItemsBySellerId(sellerId));
     }
 
     @PutMapping("/{id}")
